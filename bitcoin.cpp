@@ -88,7 +88,8 @@ class CNode {
     BeginMessage("version");
     int nBestHeight = GetRequireHeight();
     string ver = "/bitmark-seeder:0.01/";
-    vSend << PROTOCOL_VERSION << nLocalServices << nTime << you << me << nLocalNonce << ver << nBestHeight;
+    uint8_t fRelayTxs = 0;
+    vSend << PROTOCOL_VERSION << nLocalServices << nTime << you << me << nLocalNonce << ver << nBestHeight << fRelayTxs;
     EndMessage();
   }
  
@@ -144,9 +145,7 @@ class CNode {
       int64 now = time(NULL);
       vector<CAddress>::iterator it = vAddrNew.begin();
       if (vAddrNew.size() > 1) {
-
-      	if (doneAfter == 0 || doneAfter > now + 1) doneAfter = now + 1;
-
+        if (doneAfter == 0 || doneAfter > now + 1) doneAfter = now + 1;
       }
       while (it != vAddrNew.end()) {
         CAddress &addr = *it;
@@ -161,7 +160,7 @@ class CNode {
       }
       return false;
     }
-
+    
     return false;
   }
   
@@ -216,7 +215,13 @@ public:
     vSend.SetVersion(0);
     vRecv.SetType(SER_NETWORK);
     vRecv.SetVersion(0);
-    if (time(NULL) > 1329696000) {
+/* 
+	https://www.epochconverter.com   
+	https://www.timeanddate.com/sun/france/paris?month=7&year=2014
+		Epoch timestamp: 1329696000 ~ Monday, February 20, 2012 12:00:00 AM
+		Epoch timestamp: 1405317660 ~ Monday, July 14,     2014  6:01:00 AM GMT 
+*/
+    if (time(NULL) > 1405317660 ) {
       vSend.SetVersion(209);
       vRecv.SetVersion(209);
     }
@@ -229,9 +234,11 @@ public:
     int64 now;
     while (now = time(NULL), ban == 0 && (doneAfter == 0 || doneAfter > now) && sock != INVALID_SOCKET) {
       char pchBuf[0x10000];
-      fd_set set;
-      FD_ZERO(&set);
-      FD_SET(sock,&set);
+      fd_set read_set, except_set;
+      FD_ZERO(&read_set);
+      FD_ZERO(&except_set);
+      FD_SET(sock,&read_set);
+      FD_SET(sock,&except_set);
       struct timeval wa;
       if (doneAfter) {
         wa.tv_sec = doneAfter - now;
@@ -240,7 +247,7 @@ public:
         wa.tv_sec = GetTimeout();
         wa.tv_usec = 0;
       }
-      int ret = select(sock+1, &set, NULL, &set, &wa);
+      int ret = select(sock+1, &read_set, NULL, &except_set, &wa);
       if (ret != 1) {
         if (!doneAfter) res = false;
         break;
@@ -283,9 +290,13 @@ public:
   int GetStartingHeight() {
     return nStartingHeight;
   }
+
+  uint64_t GetServices() {
+    return you.nServices;
+  }
 };
 
-bool TestNode(const CService &cip, int &ban, int &clientV, std::string &clientSV, int &blocks, vector<CAddress>* vAddr) {
+bool TestNode(const CService &cip, int &ban, int &clientV, std::string &clientSV, int &blocks, vector<CAddress>* vAddr, uint64_t& services) {
   try {
     CNode node(cip, vAddr);
     bool ret = node.Run();
@@ -297,6 +308,7 @@ bool TestNode(const CService &cip, int &ban, int &clientV, std::string &clientSV
     clientV = node.GetClientVersion();
     clientSV = node.GetClientSubVersion();
     blocks = node.GetStartingHeight();
+    services = node.GetServices();
 //  printf("%s: %s!!!\n", cip.ToString().c_str(), ret ? "GOOD" : "BAD");
     return ret;
   } catch(std::ios_base::failure& e) {
@@ -304,3 +316,16 @@ bool TestNode(const CService &cip, int &ban, int &clientV, std::string &clientSV
     return false;
   }
 }
+
+/*
+int main(void) {
+  CService ip("bitcoin.sipa.be", 8333, true);
+  CService ip("bitmark.let_it.be", 9265, true); // It's all just a comment anyway
+  vector<CAddress> vAddr;
+  vAddr.clear();
+  int ban = 0;
+  bool ret = TestNode(ip, ban, vAddr);
+  printf("ret=%s ban=%i vAddr.size()=%i\n", ret ? "good" : "bad", ban, (int)vAddr.size());
+}
+*/
+

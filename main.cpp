@@ -16,8 +16,8 @@ using namespace std;
 
 // [Major].[Minor].[Patch].[Build].[letter]
 // [0].[1].[1].[8].[a]
-// September 6, 2018: v0.1.3.0.a  for Bitmark v0.9.8.3, Fork #2
-const char* dnsseeder_version = "0.1.3.0.a\0x0";
+// November 29, 2020: v0.1.1.1.a  for Bitmark v0.9.7.3
+const char* dnsseeder_version = "0.1.1.1.a\0x0";
 
 bool fTestNet = false;
 
@@ -44,8 +44,8 @@ public:
                               "Usage: %s -h <host> -n <ns> [-m <mbox>] [-t <threads>] [-p <port>]\n"
                               "\n"
                               "Options:\n"
-                              "-h <host>       Hostname of the DNS seed:  (ie, sub-domain to be served.)\n"
-                              "-n <ns>         Hostname of the nameserver:  (ie, IP addresss of this machine.)\n"
+                              "-h <host>       Hostname of the DNS seed\n"
+                              "-n <ns>         Hostname of the nameserver\n"
                               "-m <mbox>       E-Mail address reported in SOA records\n"
                               "-t <threads>    Number of crawlers to run in parallel (default 96)\n"
                               "-d <threads>    Number of DNS server threads (default 4)\n"
@@ -152,22 +152,23 @@ public:
       }
     }
     if (filter_whitelist.empty()) {
-        filter_whitelist.insert(1);
-        filter_whitelist.insert(5);
-        filter_whitelist.insert(9);
-        filter_whitelist.insert(13);
+        filter_whitelist.insert(NODE_NETWORK);
+        filter_whitelist.insert(NODE_NETWORK | NODE_BLOOM);
+        filter_whitelist.insert(NODE_NETWORK | NODE_WITNESS);
+        filter_whitelist.insert(NODE_NETWORK | NODE_WITNESS | NODE_COMPACT_FILTERS);
+        filter_whitelist.insert(NODE_NETWORK | NODE_WITNESS | NODE_BLOOM);
+        filter_whitelist.insert(NODE_NETWORK_LIMITED);
+        filter_whitelist.insert(NODE_NETWORK_LIMITED | NODE_BLOOM);
+        filter_whitelist.insert(NODE_NETWORK_LIMITED | NODE_WITNESS);
+        filter_whitelist.insert(NODE_NETWORK_LIMITED | NODE_WITNESS | NODE_COMPACT_FILTERS);
+        filter_whitelist.insert(NODE_NETWORK_LIMITED | NODE_WITNESS | NODE_BLOOM);
     }
     if (host != NULL && ns == NULL) showHelp = true;
-    if (showHelp){
-	 fprintf(stderr, help, argv[0]);
-	 exit(0);
-    }
+    if (showHelp) fprintf(stderr, help, argv[0]);
   }
 };
 
-extern "C" {
 #include "dns.h"
-}
 
 CAddrDb db;
 
@@ -191,8 +192,9 @@ extern "C" void* ThreadCrawler(void* data) {
       res.nClientV = 0;
       res.nHeight = 0;
       res.strClientV = "";
+      res.services = 0;
       bool getaddr = res.ourLastSuccess + 86400 < now;
-      res.fGood = TestNode(res.service,res.nBanTime,res.nClientV,res.strClientV,res.nHeight,getaddr ? &addr : NULL);
+      res.fGood = TestNode(res.service,res.nBanTime,res.nClientV,res.strClientV,res.nHeight,getaddr ? &addr : NULL, res.services);
     }
     db.ResultMany(ips);
     db.Add(addr);
@@ -347,7 +349,6 @@ extern "C" void* ThreadDumper(void*) {
     {
       vector<CAddrReport> v = db.GetAll();
       sort(v.begin(), v.end(), StatCompare);
-      // TODO: Name customization for simultaneous support of different coins.
       FILE *f = fopen("dnsseed.dat.new","w+");
       if (f) {
         {
@@ -369,7 +370,6 @@ extern "C" void* ThreadDumper(void*) {
         stat[4] += rep.uptime[4];
       }
       fclose(d);
-      // TODO: Name customization
       FILE *ff = fopen("dnsstats.log", "a");
       fprintf(ff, "%llu %g %g %g %g %g\n", (unsigned long long)(time(NULL)), stat[0], stat[1], stat[2], stat[3], stat[4]);
       fclose(ff);
@@ -407,61 +407,41 @@ extern "C" void* ThreadStats(void*) {
   return nullptr;
 }
 
+//  These should be regular P2P coin nodes which serve as "fixed seed nodes", 
+static const string mainnet_seeds[] =  {"seed.bitmark.co",
+					"de.bitmark.co",
+					"us.bitmark.co",
+                                        "eu.bitmark.io",
+                                        "ge.bitmark.io",
+					"jp.bitmark.io",
+					"mx.bitmark.io",
+                                        "us.bitmark.io",
+                                        "uk.bitmark.one",
+                                        ""};
 
 // Bitcoin Examples
 //static const string mainnet_seeds[] = {"dnsseed.bluematt.me", "bitseed.xf2.org", "dnsseed.bitcoin.dashjr.org", "seed.bitcoin.sipa.be", ""};
 
 // Bitmark (MARKS) (BTM)  
-//    These names represent sub-domain zones, which must be name-served by delegated name servers.
-// static const string mainnet_seeds[] = {"fertility.bitmark.guru", "fertilidad.bitmark.mx", "xara.zmark.org", "biji.bitmark.one", ""};
-/*static const string mainnet_seeds[] =  {"da.bitmark.guru",
-					"btmk.bitmark.guru",
-					"biji.bitmark.one", 
-					"shido.bitmark.one", 
-					"da.bitmark.mx", 
-					"xara.zmark.org", 
-					"seeder.dbkeys.net",
-					"fertilidad.bitmark.mx", 
-					""};
-
-*/
-
-//  These should be regular P2P coin nodes which serve as "fixed seed nodes", 
-// Jules out of service TFN
-static const string mainnet_seeds[] =  {"seed.bitmark.co",
-					"eu.bitmark.io",
-					"ge.bitmark.io", 
-					"tx.bitmark.io",
-					"us.bitmark.io",
-					"uk.bitmark.one", 
-					""};
-
-
+static const string testnet_seeds[] = { "tz.bitmark.co",
+					"tz.bitmark.guru",
+					"tz.bitmark.io",
+                                       	"tz.bitmark.mx",
+					"tz.bitmark.one",
+                                       ""};
 // Bitcoin Examples
 //static const string testnet_seeds[] = {"testnet-seed.alexykot.me",
 //                                       "testnet-seed.bitcoin.petertodd.org",
 //                                       "testnet-seed.bluematt.me",
 //                                       "testnet-seed.bitcoin.schildbach.de",
 //                                       ""};
-
-// Bitmark (MARKS) (BTM)  
-static const string testnet_seeds[] = {"tz.bitmark.guru",
-                                       "tz.bitmark.one",
-                                       "tz.bitmark.mx",
-                                       ""};
-
 static const string *seeds = mainnet_seeds;
 
 extern "C" void* ThreadSeeder(void*) {
-  // Bitmark - there are no TOR / Onion hidden service nodes at the moment; Nov 26'17
+  // Bitmark - no TOR / Onion hidden service nodes yet; Nov. 29, 2020
   //if (!fTestNet){
-  //  db.Add(CService("kjy2eqzk4zwi5zd3.onion", 9265), true);
-  //}
-
-//static const string mainnet_seeds[] = {"seed.bitmark.co", "semo.bitmark.co", "biji.bitmark.io", "seed.bitmark.mx", "xinachtli.bitmark.mx", "irugbin.zmark.org",  ""};
-//static const string testnet_seeds[] = {"ts0.bitmark.co", "ts1.bitmark.io", "ts2.bitmark.mx", ""};
-//static const string *seeds = mainnet_seeds;
-
+  //  db.Add(CService("kjy2eqzk4zwi5zd3.onion", 8333), true);
+  // }
   do {
     for (int i=0; seeds[i] != ""; i++) {
       vector<CNetAddr> ips;
@@ -480,7 +460,7 @@ int main(int argc, char **argv) {
   setbuf(stdout, NULL);
   CDnsSeedOpts opts;
   opts.ParseCommandLine(argc, argv);
-  printf("Bitmark (MARKS) DNS Seeder  %s\n",dnsseeder_version);
+  printf("Bitmark DNS Seeder v0.1.1.1a\n");
   printf("Supporting whitelisted filters: ");
   for (std::set<uint64_t>::const_iterator it = opts.filter_whitelist.begin(); it != opts.filter_whitelist.end(); it++) {
       if (it != opts.filter_whitelist.begin()) {
@@ -532,7 +512,7 @@ int main(int argc, char **argv) {
     fprintf(stderr, "No e-mail address set. Please use -m.\n");
     exit(1);
   }
-  // TODO: Output file name customizations ...
+  // TODO: Outpu file-name customizations ...
   FILE *f = fopen("dnsseed.dat","r");
   if (f) {
     printf("Loading dnsseed.dat...");
