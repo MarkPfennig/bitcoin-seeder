@@ -76,7 +76,7 @@ stops seeder from seeing and answering queries.  You may either :
 
 			OR 
 
-2) redirect external DNS quersies to a non-standard port: 
+2) redirect external DNS queries to a non-standard port: 
 
    srcPort=53
    dstPort=5353
