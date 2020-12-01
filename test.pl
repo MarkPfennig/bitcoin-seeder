@@ -7,6 +7,7 @@ use IO::Socket;
 use strict;
 
 my @dom = ("seed","bitmark","co");
+#my @dom = ("seed","bitcoin","sipa","be");
 
 my $run :shared = 1;
 
@@ -19,6 +20,7 @@ sub go {
     Proto    => 'udp',
     PeerPort => 53,
     PeerAddr => "vps.bitmark.co",
+    #PeerAddr => "vps.sipa.be",
   ) or die "Could not create socket: $!\n";
 
   while($run) {

@@ -22,7 +22,7 @@ static const char* ppszTypeName[] =
     "block",
 };
 
-// Same "Magic Bytes" in Bitcoin and Bitmark
+// Same "Magic Bytes" in Bitmark and Bitcoin
 unsigned char pchMessageStart[4] = { 0xf9, 0xbe, 0xb4, 0xd9 };
 
 CMessageHeader::CMessageHeader()
@@ -34,10 +34,14 @@ CMessageHeader::CMessageHeader()
     nChecksum = 0;
 }
 
+// Takes parameters now
 CMessageHeader::CMessageHeader(const char* pszCommand, unsigned int nMessageSizeIn)
 {
     memcpy(pchMessageStart, ::pchMessageStart, sizeof(pchMessageStart));
-    strncpy(pchCommand, pszCommand, COMMAND_SIZE);
+    // corrections from earlier version:
+    int command_len = strlen(pszCommand);
+    memcpy(pchCommand, pszCommand, command_len);
+    memset(pchCommand + command_len, 0, COMMAND_SIZE - command_len);
     nMessageSize = nMessageSizeIn;
     nChecksum = 0;
 }

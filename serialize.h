@@ -60,6 +60,7 @@ class CDataStream;
 class CAutoFile;
 static const unsigned int MAX_SIZE = 0x02000000;
 
+// Bitmark P2P Protocol "protocolversion"
 static const int PROTOCOL_VERSION = 70002;
 
 // Used to bypass the rule against non-const reference to temporary
