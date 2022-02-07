@@ -27,16 +27,16 @@ USAGE
 
 Assuming you want to run a dns seed on dnsseed.example.com, you will
 need an authorative NS record in example.com's domain record, pointing
-to for example vps.example.com:
+to for example vps.example-2.com:
 
 $ dig -t NS dnsseed.example.com
 
 ;; ANSWER SECTION
-dnsseed.example.com.   86400    IN      NS     vps.example.com.
+dnsseed.example.com.   86400    IN      NS     vps.example-2.com.
 
-On the system vps.example.com, you can now run dnsseed:
+On the system vps.example-2.com, you can now run dnsseed:
 
-./dnsseed -h dnsseed.example.com -n vps.example.com
+./dnsseed -h dnsseed.example.com -n vps.example-2.com
 
 If you want the DNS server to report SOA records, please provide an
 e-mail address (with the @ part replaced by .) using -m.
